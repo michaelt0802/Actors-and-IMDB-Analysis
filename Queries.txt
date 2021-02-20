@@ -1,0 +1,405 @@
+\echo 'Q1:'
+SELECT name, (2020 - birthyear) AS age
+FROM ACTORS;
+
+          name           | age
+-------------------------+-----
+ Kurt Russell            |  69
+ Sigourney Weaver        |  71
+ Linda Hamilton          |  64
+ Michael Biehn           |  64
+ Arnold Schwarzenegger   |  73
+ Jesse Eisenberg         |  37
+ Emma Stone              |  32
+ Woody Harrelson         |  59
+ Natalie Portman         |  39
+ Rachel McAdams          |  42
+ Jonah Hill              |  37
+ Jude Law                |  48
+ Mary Elizabeth Winstead |  36
+ Bill Murray             |  70
+(14 rows)
+
+\echo 'Q2:'
+SELECT split_part(name, ' ', 1) AS first,
+	split_part(name, ' ', 2) AS last
+FROM ACTORS;
+
+   first   |      last
+-----------+----------------
+ Kurt      | Russell
+ Sigourney | Weaver
+ Linda     | Hamilton
+ Michael   | Biehn
+ Arnold    | Schwarzenegger
+ Jesse     | Eisenberg
+ Emma      | Stone
+ Woody     | Harrelson
+ Natalie   | Portman
+ Rachel    | McAdams
+ Jonah     | Hill
+ Jude      | Law
+ Mary      | Elizabeth
+ Bill      | Murray
+(14 rows)
+
+\echo "Q3:'
+SELECT MIN(imdb_rating), MAX(imdb_rating), AVG(imdb_rating)
+FROM IMDB;
+
+ min | max | avg
+-----+-----+------
+ 6.2 | 8.4 | 7.77
+(1 row)
+
+\echo 'Q4:' 
+SELECT sum(2020 - m.birthyear) as combined_age_male,
+	SUM(2020 - f.birthyear) as combined_age_female,
+	MIN(2020 - m.birthyear) AS min_age_male, 
+	MIN(2020 - f.birthyear) AS min_age_female,
+	MAX(2020 - m.birthyear) AS max_age_male,
+	MAX(2020 - f.birthyear) AS max_age_female,
+	AVG(2020 - m.birthyear) AS avg_age_male,
+	AVG(2020 - f.birthyear) AS avg_age_female
+FROM actors m, actors f
+WHERE m.gender = 'Male' AND f.gender = 'Female';
+
+ combined_age_male | combined_age_female | min_age_male | min_age_female | max_age_male | max_age_female |    avg_age_male     |   avg_age_female
+-------------------+---------------------+--------------+----------------+--------------+----------------+---------------------+---------------------
+              2742 |                2272 |           37 |             32 |           73 |             71 | 57.1250000000000000 | 47.3333333333333333
+(1 row)
+
+\echo 'Q5:'
+SELECT title, STRING_AGG(name, '; ') actors
+FROM movies
+LEFT JOIN movieroles
+ON movies.movieid = movieroles.movieid
+LEFT JOIN actors
+ON movieroles.actorid = actors.actorid
+GROUP BY movies.movieid
+HAVING count(*) > 1;
+
+               title                |                        actors
+------------------------------------+------------------------------------------------------
+ The Terminator                     | Linda Hamilton; Arnold Schwarzenegger; Michael Biehn
+ Sherlock Holmes: A Game of Shadows | Rachel McAdams; Jude Law
+(2 rows)
+
+\echo 'Q6:'
+SELECT movieid, title, genre, year, director
+FROM(SELECT
+		movies.movieid, movies.title, movies.genre, movies.year, movies.director,
+		ROW_NUMBER () OVER (ORDER BY (imdb_rating + rating) DESC)
+	FROM
+		imdb
+	LEFT JOIN reviews
+	ON imdb.movieid = reviews.movieid
+	LEFT JOIN movies
+	on movies.movieid = imdb.movieid
+	) x
+WHERE
+	ROW_NUMBER BETWEEN 1 AND 3;
+	
+	
+
+ movieid |    title     |          genre          | year |    director
+---------+--------------+-------------------------+------+----------------
+       2 | 1917         | Drama, War              | 2019 | Sam Mendes
+       0 | The Thing    | Horror, Mystery, Sci-Fi | 1982 | John Carpenter
+       6 | Ghostbusters | Action, Comedy, Fantasy | 1984 | Ivan Reitman
+(3 rows)
+
+	
+\echo 'Q7:'
+SELECT movieid, CHAR_LENGTH(review_text) as character_count, 
+	length(review_text) - length(replace(review_text, '.', '')) / length('.') as sentence_count
+FROM Reviews;
+
+ movieid | character_count | sentence_count
+---------+-----------------+----------------
+       3 |            1636 |             14
+       5 |             493 |              9
+       7 |             801 |              5
+       6 |             446 |              4
+       2 |             529 |             15
+       1 |             267 |              2
+       8 |             916 |             16
+       9 |              82 |              1
+       4 |            1937 |             15
+       0 |             654 |              7
+(10 rows)
+
+\echo "Q8:' 
+SELECT genre, COUNT(genre) as count
+FROM (SELECT regexp_split_to_table(movies.genre, ', ') AS genre
+FROM movies) split_genre
+GROUP BY genre;
+
+   genre   | count
+-----------+-------
+ Adventure |     3
+ Comedy    |     3
+ Crime     |     1
+ Fantasy   |     1
+ Drama     |     1
+ Horror    |     4
+ Sci-Fi    |     5
+ War       |     1
+ Mystery   |     2
+ Action    |     4
+(10 rows)
+
+\echo 'Q9:'
+SELECT actors.name, (movies.year - actors.birthyear) AS age, movies.title
+FROM actors
+LEFT JOIN movieroles
+ON actors.actorid = movieroles.actorid
+LEFT JOIN movies
+ON movieroles.movieid = movies.movieid
+WHERE movieroles.movieid NOT IN (SELECT movieroles.movieid 
+	FROM movieroles, movies
+	WHERE movies.movieid = movieroles.movieid
+	GROUP BY movieroles.movieid, actorid, year
+	HAVING COUNT(actorid) > 1 AND MIN(year) = 1
+);
+
+          name           | age |               title
+-------------------------+-----+------------------------------------
+ Kurt Russell            |  31 | The Thing
+ Mary Elizabeth Winstead |  27 | The Thing
+ Bill Murray             |  34 | Ghostbusters
+ Bill Murray             |  59 | Zombieland
+ Jude Law                |  39 | Sherlock Holmes: A Game of Shadows
+ Rachel McAdams          |  33 | Sherlock Holmes: A Game of Shadows
+ Emma Stone              |  19 | Superbad
+ Sigourney Weaver        |  30 | Alien
+ Linda Hamilton          |  28 | The Terminator
+ Michael Biehn           |  28 | The Terminator
+ Arnold Schwarzenegger   |  37 | The Terminator
+ Jonah Hill              |     |
+ Woody Harrelson         |     |
+ Jesse Eisenberg         |     |
+ Natalie Portman         |     |
+(15 rows)
+
+
+
+\echo 'Q10:'
+SELECT g_count AS genre, AVG(rating) AS avg_rating
+FROM movies
+LEFT JOIN reviews
+ON reviews.movieid=movies.movieid
+LEFT JOIN (SELECT regexp_split_to_table(movies.genre, E'\\, ') AS g_count, movieid
+FROM movies) genre
+ON genre.movieid = reviews.movieid
+GROUP BY genre.g_count;
+
+   genre   |    avg_rating
+-----------+------------------
+ Adventure | 7.66666666666667
+ Comedy    | 8.33333333333333
+ Crime     |                6
+ Fantasy   |               10
+ Drama     |               10
+ Horror    |             7.75
+ Sci-Fi    |                8
+ War       |               10
+ Mystery   |              8.5
+ Action    |             8.25
+(10 rows)
+
+
+\echo 'Q11:'
+SELECT movies.title, ABS(imdb_rating - rating) as difference_abs,
+	CASE WHEN imdb_rating > rating THEN 'imdb'
+		 WHEN rating > imdb_rating THEN 'customer'
+		 ELSE 'same rating'
+	END
+FROM movies
+LEFT JOIN imdb
+ON movies.movieid=imdb.movieid
+LEFT JOIN reviews
+ON movies.movieid=reviews.movieid
+ORDER BY (ABS(imdb_rating - reviews.rating)) DESC;
+
+               title                | difference_abs |    case
+------------------------------------+----------------+-------------
+ Alien                              |            2.4 | imdb
+ Ghostbusters                       |            2.2 | customer
+ The Thing                          |            1.9 | customer
+ 1917                               |            1.6 | customer
+ Sherlock Holmes: A Game of Shadows |            1.5 | imdb
+ Jurassic Park                      |            0.9 | customer
+ The Thing                          |            0.8 | customer
+ Superbad                           |            0.6 | imdb
+ Zombieland                         |            0.4 | customer
+ The Terminator                     |              0 | same rating
+(10 rows)
+
+\echo 'C1:'
+ALTER TABLE ACTORS
+ADD CONSTRAINT actors
+CHECK (name ~ '[ ]+' AND name ~ '^[A-Z a-z]+$' AND name ~ '[a-zA-Z]{2,}' 
+AND name ~ '[aeiouAEIOU]+' AND name ~ '^[A-Z]' AND split_part(name, ' ', 2) ~ '^[A-Z]');
+
+\echo 'C2:'
+ALTER TABLE ACTORS
+ADD CONSTRAINT actors_age
+Check(birthyear > 1919 AND birthyear < 2011);
+
+\echo 'C3'
+ALTER TABLE ACTORS
+ADD CONSTRAINT actors_gender
+Check(gender in ('Male', 'Female', 'Non-binary'));
+
+\echo 'C4'
+ALTER TABLE REVIEWS
+ADD CONSTRAINT review_text
+Check(CHAR_LENGTH(review_text) <= 2000 AND (length(review_text) - length(replace(review_text, '.', '')) / length('.')) <= 20 
+	AND (length(review_text) - length(replace(review_text, ' ', '')) / length(' ')) <= 1000 AND review_text ~ '^[^a-z]');
+
+\echo 'C5'
+ALTER TABLE REVIEWS
+ADD CONSTRAINT rating_float
+Check(rating BETWEEN 1.0 AND 10.0);
+
+ALTER TABLE IMDB
+ADD CONSTRAINT imdb_rating_float
+Check(imdb_rating BETWEEN 1.0 AND 10.0);
+
+\echo 'C6'
+-- Not sure whether I need to include this but I deleted the already existing fkeys to create the new ones
+ALTER TABLE MOVIEROLES DROP CONSTRAINT movieroles_movieid_fkey;
+ALTER TABLE MOVIEROLES DROP CONSTRAINT movieroles_actorid_fkey;
+ALTER TABLE REVIEWS DROP CONSTRAINT reviews_movieid_fkey;
+ALTER TABLE IMDB DROP CONSTRAINT imdb_movieid_fkey;
+
+
+ALTER TABLE MOVIEROLES
+ADD CONSTRAINT movieroles_movieid_fkey FOREIGN KEY (movieid) 
+REFERENCES movies (movieid) ON DELETE CASCADE;
+ALTER TABLE MOVIEROLES
+ADD CONSTRAINT movieroles_actorid_fkey FOREIGN KEY (actorid) 
+REFERENCES actors (actorid) ON DELETE CASCADE;
+ALTER TABLE REVIEWS
+ADD CONSTRAINT reviews_movieid_fkey FOREIGN KEY (movieid) 
+REFERENCES movies (movieid) ON DELETE CASCADE;
+ALTER TABLE IMDB
+ADD CONSTRAINT imdb_movieid_fkey FOREIGN KEY (movieid) 
+REFERENCES movies (movieid) ON DELETE CASCADE;
+
+DELETE FROM MOVIES WHERE movieid=7;
+DELETE FROM ACTORS WHERE actorid=5;
+
+\echo 'C7'
+-- C1
+INSERT INTO ACTORS (actorid, name, gender, birthyear) VALUES (14, 'JohnDoe0', 'Male', 2000);
+-- C2
+INSERT INTO ACTORS (actorid, name, gender, birthyear) VALUES (14, 'John Doe', 'Male', 1910);
+-- C3
+INSERT INTO ACTORS (actorid, name, gender, birthyear) VALUES (14, 'John Terrestrial', 'Alien', 2000);
+-- C4
+INSERT INTO REVIEWS (customerid, movieid, rating, review_text) VALUES (10, 10, 2.5, 'At. at. at. at. at. at. at. at. at. at. at. at. at. at. at. at. at. at. at. at. at.');
+-- C5a
+INSERT INTO REVIEWS (customerid, movieid, rating, review_text) VALUES (10, 10, 12.1, 'Liked it better than Cats');
+-- C5b
+INSERT INTO IMDB (movieid, imdb_rating, imdbid) VALUES (10, 0.4, 'tt69696969');
+
+\echo 'C8'
+SELECT *
+FROM MOVIES m1, MOVIES m2
+WHERE m1.title = m2.title AND m1.genre = m2.genre AND m1.director <> m2.director;
+-- non valid fd
+-- SQL is able to check the fd {title, genre} -> {director} in the format I wrote out by first checking and identifying the prime attributes of the fd that act as part of the candidate key. Then by using a not equal operator on the directors for both m1 and m2, we check to see if there are any rows that are non-unique for the prime attributes. If there are non unique rows (meaning not qualifying fd) they they show up in the SELECT query. If the SELECT query is empty then it is a fd.
+
+\echo 'C9'
+SELECT *
+FROM ACTORS a1, ACTORS a2
+WHERE a1.name = a2.name AND a1.gender = a2.gender AND a1.birthyear <> a2.birthyear;
+-- valid fd
+-- see description above
+
+\echo 'C10'
+-- C8
+INSERT INTO MOVIES (movieid, title, genre, year, director) VALUES (10, 'Jurassic Park', 'Action, Adventure, Sci-Fi', 1993, 'Michael Bay');
+
+-- C9
+INSERT INTO ACTORS (actorid, name, gender, birthyear) VALUES (14, 'Kurt Russell', 'Male', 1955);
+
+\echo 'Q1'
+-- Lord of the Rings
+INSERT INTO MOVIES (movieid, title, genre, year, director) VALUES (11, 'The Lord of the Rings: The Fellowship of the Ring', 'Action, Adventure, Drama, Fantasy', 2001, 'Peter Jackson');
+INSERT INTO ACTORS (actorid, name, gender, birthyear) VALUES (15, 'Ian McKellen', 'Male', 1939);
+INSERT INTO MOVIEROLES (actorid, movieid, role) VALUES (15, 11, 'Gandalf');
+INSERT INTO REVIEWS (customerid, movieid, rating, review_text) VALUES (10, 11, 9.7, 'Bloody fine film if I do say so myself');
+INSERT INTO IMDB (movieid, imdb_rating, imdbid) VALUES (11, 8.8, 'tt0084131');
+
+--Inception
+INSERT INTO MOVIES (movieid, title, genre, year, director) VALUES (12, 'Inception ', 'Action, Adventure, Sci-Fi, Thriller', 2010, 'Christopher Nolan');
+INSERT INTO ACTORS (actorid, name, gender, birthyear) VALUES (16, 'Leonardo DiCaprio', 'Male', 1974);
+INSERT INTO MOVIEROLES (actorid, movieid, role) VALUES (16, 12, '	Cobb');
+INSERT INTO REVIEWS (customerid, movieid, rating, review_text) VALUES (10, 12, 9.3, 'My 3rd time watching this movie! Yet, it still stunned my mind, kept me enjoyed its every moment and left me with many thoughts afterward.');
+INSERT INTO IMDB (movieid, imdb_rating, imdbid) VALUES (12, 8.8, 'tt00841999');
+
+\echo 'Q2'
+SELECT title, 
+	(CASE WHEN movies.movieid > 9 THEN 'True'
+		ELSE 'False'
+	END) AS "New Movie",
+	imdb_rating, 
+	rating
+FROM movies
+LEFT JOIN imdb
+ON movies.movieid=imdb.movieid
+LEFT JOIN reviews
+ON movies.movieid=reviews.movieid;
+
+\echo 'Q3'
+SELECT name, 
+	(CASE WHEN name = 'Ian McKellen' THEN 'True'
+		WHEN name = 'Leonardo DiCaprio' THEN 'True'
+		ELSE 'False'
+	END) AS "New Actor"
+FROM actors;
+
+\echo 'Q3'
+SELECT role, 
+	(CASE WHEN movieid > 9 THEN 'True'
+		ELSE 'False'
+	END) AS "New Role"
+FROM movieroles;
+
+\echo 'Q5'
+-- select the name of actors/actresses who are 50 or older and the average imdb_rating for movies they are in. Show the average rating as well from highest to lowest. Remove any actors without corresponding rating values.
+
+Select actors.name, AVG(imdb_rating) AS "Average Movie Rating"
+FROM actors
+LEFT JOIN movieroles
+ON actors.actorid = movieroles.actorid
+LEFT JOIN IMDB
+ON movieroles.movieid = imdb.movieid
+WHERE (2020 - actors.birthyear) >= 50
+AND imdb_rating IS NOT NULL
+GROUP BY actors.name
+ORDER BY AVG(imdb_rating) DESC;
+
+-- RESULTS
+
+         name          | Average Movie Rating
+-----------------------+----------------------
+ Ian McKellen          |                  8.8
+ Sigourney Weaver      |                  8.4
+ Kurt Russell          |                  8.1
+ Michael Biehn         |                    8
+ Arnold Schwarzenegger |                    8
+ Linda Hamilton        |                    8
+ Bill Murray           |                  7.7
+
+
+
+
+
+
+
+
+
